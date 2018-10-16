@@ -1,7 +1,7 @@
-rgdal
-raster
-devtools
-reshape2
-dplyr
-sp
-prism
+install.packages('rgdal')
+install.packages("raster")
+install.packages("devtools")
+install.packages("reshape2")
+install.packages("dplyr")
+install.packages("sp")
+install.packages("prism")
