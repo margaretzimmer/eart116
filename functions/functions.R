@@ -39,8 +39,87 @@ gauge <- melt(gauge,id.vars="Date")
 }
 
 
-ap_multiyear_plot<-function(gauge){
-    ggplot(gauge, aes(Date,value, col=variable)) + 
-  geom_line() +labs(x = "Month of Water Year", colour = "WY", y = "Discharge (cfs)")
+
+
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
 }
 
+ap_multiyear_plot <- function(gauge1,gauge2,gauge3,gauge4) {
+    p1 <- ggplot(gauge1, aes(x=gauge1$Date, y=gauge1$value, colour=gauge1$variable))+
+    geom_line() +
+    ggtitle(deparse(substitute(gauge1)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
+    
+    p1h <- ggplot(gauge1, aes(gauge1$value))+
+    geom_histogram() +
+    ggtitle(deparse(substitute(gauge1)))+ xlab("Discharge (CFS)")
+    
+    p2 <- ggplot(gauge2, aes(x=gauge2$Date, y=gauge2$value, colour=gauge2$variable))+
+    geom_line() +
+    ggtitle(deparse(substitute(gauge2)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
+    
+    p2h <- ggplot(gauge2, aes(gauge2$value))+
+    geom_histogram() +
+    ggtitle(deparse(substitute(gauge2)))+ xlab("Discharge (CFS)")
+    
+    p3 <- ggplot(gauge3, aes(x=gauge3$Date, y=gauge3$value, colour=gauge3$variable))+
+    geom_line() +
+    ggtitle(deparse(substitute(gauge3)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
+
+    p3h <- ggplot(gauge3, aes(gauge3$value))+
+    geom_histogram() +
+    ggtitle(deparse(substitute(gauge3)))+ xlab("Discharge (CFS)")
+    
+    p3 + labs(aesthetic="WY")
+    
+    p4 <- ggplot(gauge4, aes(x=gauge4$Date, y=gauge4$value, colour=gauge4$variable))+
+    geom_line() +
+    ggtitle(deparse(substitute(gauge4)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
+
+    p4h <- ggplot(gauge4, aes(gauge4$value))+
+    geom_histogram() +
+    ggtitle(deparse(substitute(gauge4))) + xlab("Discharge (CFS)")
+    
+    multiplot(p1,p2,p3,p4, cols=1)
+    
+    }
+
+ap_readNWISpeak <- function(siteNumbers){
+    gauge = readNWISpeak(siteNumbers)
+    time = as.data.frame.Date(gauge$peak_dt)
+    vel = gauge$peak_va
+    cbind(time,vel)
+      
+}
