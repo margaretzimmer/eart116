@@ -1,125 +1,83 @@
-ap_plot <-function(gauge1,gauge2,gauge3,gauge4){
-    par(mfrow=c(2,2))
-    plot(seq(as.Date("2017-10-01"), by='days', length.out=length(gauge1)),gauge1, main=deparse(substitute(gauge1)),ylab='Streamflow (cfs)',xlab='Month of Water-Year',type='l')
-    plot(seq(as.Date("2017-10-01"), by='days', length.out=length(gauge2)),gauge2, main=deparse(substitute(gauge2)),ylab='Streamflow (cfs)',xlab='Month of Water-Year',type='l')
-    plot(seq(as.Date("2017-10-01"), by='days', length.out=length(gauge3)),gauge3, main=deparse(substitute(gauge3)),ylab='Streamflow (cfs)',xlab='Month of Water-Year',type='l')
-    plot(seq(as.Date("2017-10-01"), by='days', length.out=length(gauge4)),gauge4, main=deparse(substitute(gauge4)),ylab='Streamflow (cfs)',xlab='Month of Water-Year',type='l')
+ap_plot <-function(gage1,gage2,gage3,gage4){
+  df = gage1 %>%
+    left_join(.,gage2,by=c("Date","WY"))%>%
+    left_join(.,gage3,by=c("Date","WY"))%>%
+    left_join(.,gage4,by=c("Date","WY")) %>%
+    setNames(.,c("Date","Gage_1","WY","Gage_2","Gage_3","Gage_4"))%>%
+    pivot_longer(
+      cols = starts_with("Gage"),
+      names_to = "Gage",
+      values_to = "Discharge",
+      values_drop_na = TRUE
+    )
+  df$WY = factor(df$WY)
+  ggplot(df) +
+    geom_line(aes(x=Date,y=Discharge,color=WY))+
+    facet_wrap(~Gage,nrow = 4,scales="free")
 }
 
 
 ap_readNWISdata <- function(sites,service,startDate,endDate){
-    gauge = readNWISdata(sites=sites,service=service,startDate=startDate,endDate=endDate,parameterCd="00060")
-    return(gauge$X_00060_00003)
+  gauge = readNWISdata(sites=sites,service=service,startDate=startDate,endDate=endDate,parameterCd="00060")%>%
+    addWaterYear()%>%
+    select(dateTime,X_00060_00003,waterYear) %>%
+    setNames(.,c("Date","Discharge","WY"))
+  return(gauge)
 }
 
 
-ap_multiyear <-function(sites,service,startDate,endDate){
-    gauge <- NULL
-    fake = seq(1:365)
-    for (i in 1:5){
-        startDate = startDate
-        endDate = endDate
-        s <- as.POSIXlt(as.Date(startDate))
-        e <- as.POSIXlt(as.Date(endDate))
-        s$year <- s$year-i
-        e$year <- e$year-i
-        startDate = as.Date(s)
-        endDate = as.Date(e)
-        tmp = readNWISdata(sites=sites,service='dv',startDate=startDate,endDate=endDate)
-        length(tmp) = length(fake)
-        tmp = tmp$X_00060_00003
-        gauge <-cbind(gauge,tmp)
-        }
-gauge = data.frame(gauge)
-date = seq(as.Date("2017-10-01"), by='days', length.out=365)
-gauge <-cbind(gauge,date)
-names(gauge)<-c('WY2018','WY2017','WY2016','WY2015','WY2014','Date')
-#names(gauge)<-c('WY2018','WY2017','WY2016','WY2015','WY2014','WY2013','WY2012','WY2011','WY2010','WY2009','Date')
-gauge <- melt(gauge,id.vars="Date")
+ap_multiyear <-function(sites,service,startDate,endDate,numYear){
+  gauge = readNWISdata(sites=sites,service=service,startDate=ymd(startDate)-years(numYear),endDate=endDate,parameterCd="00060")%>%
+    addWaterYear()%>%
+    select(dateTime,X_00060_00003,waterYear) %>%
+    setNames(.,c("Date","Discharge","WY"))
 }
 
 
 
-
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
-
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-
-  numPlots = length(plots)
-
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                    ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-
- if (numPlots==1) {
-    print(plots[[1]])
-
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
+ap_multiyear_plot <-function(gage1,gage2,gage3,gage4){
+  df = gage1 %>%
+    left_join(.,gage2,by=c("Date","WY"))%>%
+    left_join(.,gage3,by=c("Date","WY"))%>%
+    left_join(.,gage4,by=c("Date","WY")) %>%
+    setNames(.,c("Date","Gage_1","WY","Gage_2","Gage_3","Gage_4"))%>%
+    pivot_longer(
+      cols = starts_with("Gage"),
+      names_to = "Gage",
+      values_to = "Discharge",
+      values_drop_na = TRUE
+    )
+  df$WY = factor(df$WY)
+  df$Date = lubridate::yday(df$Date)
+  ggplot(df) +
+    geom_line(aes(x=Date,y=Discharge,color=WY))+
+    scale_x_continuous(breaks = c(1, 121, 244, 335), 
+                       labels = c("Jan", "May", "Sep", "Dec"))+
+    facet_wrap(~Gage,nrow = 4,scales="free")
 }
 
-ap_multiyear_plot <- function(gauge1,gauge2,gauge3,gauge4) {
-    p1 <- ggplot(gauge1, aes(x=gauge1$Date, y=gauge1$value, colour=gauge1$variable))+
-    geom_line() +
-    ggtitle(deparse(substitute(gauge1)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
-    
-    p1h <- ggplot(gauge1, aes(gauge1$value))+
-    geom_histogram() +
-    ggtitle(deparse(substitute(gauge1)))+ xlab("Discharge (CFS)")
-    
-    p2 <- ggplot(gauge2, aes(x=gauge2$Date, y=gauge2$value, colour=gauge2$variable))+
-    geom_line() +
-    ggtitle(deparse(substitute(gauge2)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
-    
-    p2h <- ggplot(gauge2, aes(gauge2$value))+
-    geom_histogram() +
-    ggtitle(deparse(substitute(gauge2)))+ xlab("Discharge (CFS)")
-    
-    p3 <- ggplot(gauge3, aes(x=gauge3$Date, y=gauge3$value, colour=gauge3$variable))+
-    geom_line() +
-    ggtitle(deparse(substitute(gauge3)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
-
-    p3h <- ggplot(gauge3, aes(gauge3$value))+
-    geom_histogram() +
-    ggtitle(deparse(substitute(gauge3)))+ xlab("Discharge (CFS)")
-    
-    p3 + labs(aesthetic="WY")
-    
-    p4 <- ggplot(gauge4, aes(x=gauge4$Date, y=gauge4$value, colour=gauge4$variable))+
-    geom_line() +
-    ggtitle(deparse(substitute(gauge4)))+xlab("Date")+ylab("Discharge(CFS)")+labs(colour="WY")
-
-    p4h <- ggplot(gauge4, aes(gauge4$value))+
-    geom_histogram() +
-    ggtitle(deparse(substitute(gauge4))) + xlab("Discharge (CFS)")
-    
-    multiplot(p1,p2,p3,p4, cols=1)
-    
-    }
 
 ap_readNWISpeak <- function(siteNumbers){
-    gauge = readNWISpeak(siteNumbers)
-    time = as.data.frame.Date(gauge$peak_dt)
-    vel = gauge$peak_va
-    cbind(time,vel)
-      
+  gage = readNWISpeak(siteNumbers)%>%
+    select(peak_dt,peak_va)%>%
+    setNames(c("Date","Discharge"))
+  gage$Date = lubridate::ymd(gage$Date)
+  return(gage)
+}
+
+ap_peakPlot <-function(peakData){
+  year = ggplot(peakData)+
+    geom_col(aes(x=Date,y=Discharge))+
+    scale_fill_viridis_c()+
+    xlab("Year")+
+    ylab("Discharge (cfs)")+
+    theme(legend.position = "none")+
+    theme_minimal()
+  hist =ggplot(peakData)+
+    geom_histogram(aes(x=lubridate::month(Date,label=T)),stat="count")+ 
+    xlab("Month")+
+    ylab("Number of Peaks")+
+    theme_minimal()
+  library(patchwork)
+  hist / year
 }
